@@ -1,1 +1,9 @@
-# mera_repository
+# mera_repositorf
+f
+f
+t
+quit
+t(
+exit
+exit()
+:)
