@@ -1,60 +1,3 @@
-select dt.distributor_id,dm.name as distributor_name ,im.d_inv_date::DATE::VARCHAR as invoice_date,dt.n_inv_no::VARCHAR as invoice_no, null::VARCHAR as challan_no
-,(CAST(date(im.d_inv_date)||' '||split_part(im.t_time,' ',2) as TIMESTAMP)) as invoice_timestamp
---,(CAST(date(im.d_inv_date)||' '||split_part(im.t_ltime,' ',2) as TIMESTAMP)) as inv_timestamp_b
---,im.t_ltime as inv_timestamp_c
-  ,MAX(CASE
-        WHEN dt.c_stage_code = 3 and dt.distributor_id=157 THEN CAST(date(dt.d_date)||' '||split_part(dt.t_time,' ',2) as TIMESTAMP)
-        WHEN dt.c_stage_code = 4 and dt.distributor_id=6 THEN CAST(date(dt.d_date)||' '||split_part(dt.t_time,' ',2) as TIMESTAMP)
-        WHEN dt.c_stage_code = 4 and dt.distributor_id=5 THEN CAST(date(dt.d_date)||' '||split_part(dt.t_time,' ',2) as TIMESTAMP)
-        WHEN dt.c_stage_code = 4 and dt.distributor_id=52 THEN CAST(date(dt.d_date)||' '||split_part(dt.t_time,' ',2) as TIMESTAMP)
-        WHEN dt.c_stage_code = 4 and dt.distributor_id=73 THEN CAST(date(dt.d_date)||' '||split_part(dt.t_time,' ',2) as TIMESTAMP)
-        ELSE NULL
-    END) AS pick_start
-        ,MAX(CASE
-        WHEN dt.c_stage_code = 4 and dt.distributor_id=157 THEN CAST(date(dt.d_date)||' '||split_part(dt.t_time,' ',2) as TIMESTAMP)
-        WHEN dt.c_stage_code = 6 and dt.distributor_id=6 THEN CAST(date(dt.d_date)||' '||split_part(dt.t_time,' ',2) as TIMESTAMP)
-        WHEN dt.c_stage_code = 5 and dt.distributor_id=5 THEN CAST(date(dt.d_date)||' '||split_part(dt.t_time,' ',2) as TIMESTAMP)
-        WHEN dt.c_stage_code = 5 and dt.distributor_id=52 THEN CAST(date(dt.d_date)||' '||split_part(dt.t_time,' ',2) as TIMESTAMP)
-        WHEN dt.c_stage_code = 5 and dt.distributor_id=73 THEN CAST(date(dt.d_date)||' '||split_part(dt.t_time,' ',2) as TIMESTAMP)
-        ELSE NULL
-    END) AS pick_finish
-        ,MAX(CASE
-        WHEN dt.c_stage_code = 6 and dt.distributor_id=157 THEN CAST(date(dt.d_date)||' '||split_part(dt.t_time,' ',2) as TIMESTAMP)
-        WHEN dt.c_stage_code = 7 and dt.distributor_id=6 THEN CAST(date(dt.d_date)||' '||split_part(dt.t_time,' ',2) as TIMESTAMP)
-        WHEN dt.c_stage_code = 7 and dt.distributor_id=5 THEN CAST(date(dt.d_date)||' '||split_part(dt.t_time,' ',2) as TIMESTAMP)
-        WHEN dt.c_stage_code = 7 and dt.distributor_id=52 THEN CAST(date(dt.d_date)||' '||split_part(dt.t_time,' ',2) as TIMESTAMP)
-        WHEN dt.c_stage_code = 7 and dt.distributor_id=73 THEN CAST(date(dt.d_date)||' '||split_part(dt.t_time,' ',2) as TIMESTAMP)
-        ELSE NULL
-    END) AS check_finish
-        ,MAX(CASE
-        WHEN dt.c_stage_code = 8 and dt.distributor_id=157 THEN CAST(date(dt.d_date)||' '||split_part(dt.t_time,' ',2) as TIMESTAMP)
-        WHEN dt.c_stage_code = 8 and dt.distributor_id=6 THEN CAST(date(dt.d_date)||' '||split_part(dt.t_time,' ',2) as TIMESTAMP)
-        WHEN dt.c_stage_code = 8 and dt.distributor_id=5 THEN CAST(date(dt.d_date)||' '||split_part(dt.t_time,' ',2) as TIMESTAMP)
-        WHEN dt.c_stage_code = 8 and dt.distributor_id=52 THEN CAST(date(dt.d_date)||' '||split_part(dt.t_time,' ',2) as TIMESTAMP)
-        WHEN dt.c_stage_code = 8 and dt.distributor_id=73 THEN CAST(date(dt.d_date)||' '||split_part(dt.t_time,' ',2) as TIMESTAMP)
-        ELSE NULL
-    END) AS delivery_out,pl.picks,pl.line_items
-    from pharmassist.doc_track dt
-    INNER join pharmassist.invoice_mst im
-    on dt.n_inv_no=im.n_srno
-    and dt.distributor_id=im.distributor_id
-    and dt.fin_year=im.fin_year
-    left join adhoc.distributor_name dm
-    on dt.distributor_id=dm.distributor_id
-    left join
-    (
-	    select n_srno,d_inv_date,distributor_id,sum(n_qty+n_scheme_qty) as picks,COUNT(DISTINCT c_item_code) as line_items from pharmassist.invoice_det
-		where d_inv_date>CURRENT_DATE-4
-		GROUP by 1,2,3
-	)pl
-	ON pl.n_srno=dt.n_inv_no and pl.distributor_id=dt.distributor_id
-    where dt.distributor_id in (2,6,5,52,73,157)
-    and im.c_prefix='I'
-    and (case when dt.distributor_id=52 then extract(hour from im.t_time) BETWEEN 4 and 15 else to_char(im.t_time, 'HH24:MI:SS') BETWEEN '08:29:59' and '20:29:59' end )
-    and date(im.d_inv_date)>CURRENT_DATE-4
-    GROUP BY 1,2,3,4,5,6,11,12
-UNION
-(	
 select
 base.distributor_id::INT,
 (CASE	
@@ -148,4 +91,3 @@ END) as Distrbutor_name
 	on
 	base.invoice_no=inv_track.vno and base.distributor_id=inv_track.distributor_id
 	group by 1,2,3,4,5,6,7,8,9,10
-)
