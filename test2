@@ -85,13 +85,12 @@ class UpdateData(DataBaseConnection, Mailer):
             return False
 
     def update_data(self, data, f_name):
-        print(data)
         print("Inside helper")
         positive = []
         negative = []
 
         for index, i in enumerate(data):
-            if i.get("distributor_item_code"):
+            if i.get("fk_item_master_uid"):
                 if index < 1:
                     all_headers = i.keys()
                     all_headers.append("response")
@@ -99,94 +98,101 @@ class UpdateData(DataBaseConnection, Mailer):
                     negative.append(all_headers)
 
                 temp = i.values()
-                if (i.get("fk_item_master_uid")!='NULL') and (i.get("fk_item_master_uid")!=None):
-                    if (not self.validate_uuid(i.get("fk_item_master_uid"))):
-                        self.mail("Hi I am Hodor. Breaking operation, malform uuid detected " + str(
-                            i.get("fk_item_master_uid")) + " ", [])
-                        return "Breaking Operation";
-                    sql = "select id from item_master where item_uid = '{}'".format(i.get("fk_item_master_uid"))
-                    mdm_data = self.select_query(sql)
-                else:
-                    mdm_data = "1"
+                if (not self.validate_uuid(i.get("fk_item_master_uid"))):
+                    self.mail("Hi I am Hodor. Breaking operation, malform uuid detected " + str(
+                        i.get("fk_item_master_uid")) + " ", [])
+                    return "Breaking Operation";
+                sql = "select id from item_master where item_uid = '{}'".format(i.get("fk_item_master_uid"))
+
                 try:
+                    mdm_data = self.select_query(sql)
+
                     if (len(mdm_data) > 0):
                         distributor_item_code = i.get("distributor_item_code")
                         fk_distributor_master_id = i.get("distributor_id")
                         fk_item_master_uid = i.get("fk_item_master_uid")
-                        is_active = True if (i.get("is_active")) else False
-                        is_duplicate = False
+                        is_active = True if (int(i.get("is_active"))==1) else False
+                        is_duplicate = True if (int(i.get("is_duplicate"))==1) else False
+
                         sql = "select id from distributor_item_master where fk_distributor_master_id = {fk_distributor_master_id} and distributor_item_code = '{distributor_item_code}'".format(
                             fk_distributor_master_id=fk_distributor_master_id,
                             distributor_item_code=distributor_item_code)
-    
+
                         dim_data = self.select_query(sql)
+
                         if (len(dim_data) > 0):
+
                             sql = """insert into item_distributor_mapping (fk_item_master_uid,is_active,created_on,updated_on,
-                                    fk_distributor_master_id,distributor_item_code,is_duplicate)
-                                    values ({fk_item_master_uid},{is_active},now(),now(),{fk_distributor_master_id},'{distributor_item_code}',{is_duplicate})
-                                    on conflict(distributor_item_code,fk_distributor_master_id) do update set fk_item_master_uid={fk_item_master_uid},
-                                    is_active={is_active},updated_on=now()""".format(
+                                                                                          fk_distributor_master_id,distributor_item_code,is_duplicate)
+                                                    values ('{fk_item_master_uid}',{is_active},now(),now(),{fk_distributor_master_id},'{distributor_item_code}',{is_duplicate})
+                                                    on conflict(distributor_item_code,fk_distributor_master_id) do update set fk_item_master_uid='{fk_item_master_uid}'
+                                                    ,is_active={is_active},updated_on=now(),is_duplicate={is_duplicate}""".format(
                                 fk_item_master_uid=fk_item_master_uid,
                                 is_active=is_active,
                                 distributor_item_code=distributor_item_code,
                                 fk_distributor_master_id=fk_distributor_master_id,
                                 is_duplicate=is_duplicate);
                             update_status = self.update_query(sql)
-                            data[0].keys()
-                            if "is_x4" in data[0].keys() and i.get("is_x4") == '1':
-                                #print('inside_x4')
-                                sql2 = """update pseudo_idm 
-                                            set is_verified=true
-                                            from 
-                                            item_distributor_mapping  
-                                            where  item_distributor_mapping.fk_distributor_master_id={fk_distributor_master_id}
-                                            and item_distributor_mapping.distributor_item_code='{distributor_item_code}'
-                                            and item_distributor_mapping.id=pseudo_idm.idm_id """.format(
+                            # data[0].keys()
+                            # print(i["is_x4"])
+                            #  
+                            if "is_x4" in data[0].keys() and i.get("is_x4")=='1' :
+                                # and i.get("is_x4")==1
+                                # print('inside_x4')
+                                # print(i)
+                                # print(i["is_x4"])
+                                sql2="""update pseudo_idm 
+                                        set is_verified=true
+                                        from 
+                                        item_distributor_mapping  
+                                        where  item_distributor_mapping.fk_distributor_master_id={fk_distributor_master_id}
+                                         and item_distributor_mapping.distributor_item_code='{distributor_item_code}'
+                                        and item_distributor_mapping.id=pseudo_idm.idm_id """.format(
                                     distributor_item_code=distributor_item_code,
                                     fk_distributor_master_id=fk_distributor_master_id);
                                 update_status = self.update_query(sql2)
-                                temp.append("Updated Successfully using X4")
+                                temp.append("Updated Sucessfully using X4")
                                 positive.append(temp)
                             else:
-                                temp.append("Updated Successfully")
+                                temp.append("Updated Sucessfully")
                                 positive.append(temp)
                         else:
                             temp.append("Data Not Available In Distributor Item Master Table")
                             negative.append(temp)
-    
+
                     else:
-    
+
                         temp.append("Uuid Not available in Item Master")
                         negative.append(temp)
                 except Exception as e:
                     print(e, "error")
-    
+
         f_name = f_name.split("/")[-1].replace(".csv", "")
-    
+
         positive_file_name = "/tmp/" + f_name + "_positive.csv"
         negative_file_name = "/tmp/" + f_name + "_negative.csv"
-    
+
         myFile = open(positive_file_name, 'w')
         with myFile:
             writer = csv.writer(myFile)
             writer.writerows(positive)
-    
+
         myFile = open(negative_file_name, 'w')
         with myFile:
             writer = csv.writer(myFile)
             writer.writerows(negative)
-    
+
         bucketName = 'temp-test-ahwspl'
         sub_bucket = str(datetime.datetime.now())
-    
+
         Key1 = '{}/{}'.format(sub_bucket, positive_file_name)
         s3 = boto3.client('s3')
         s3.put_object(Bucket=bucketName, Key=Key1)
-    
+
         Key = '{}/{}'.format(sub_bucket, negative_file_name)
         s3 = boto3.client('s3')
         s3.put_object(Bucket=bucketName, Key=Key)
-    
+
         self.mail("Hi I am Hodor. Please find upload results from attachment :)",
                   [positive_file_name, negative_file_name])
         os.remove(positive_file_name)
