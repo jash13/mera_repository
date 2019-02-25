@@ -1,0 +1,77 @@
+DROP MAP i18n IF EXISTS in_ist CASCADE;
+
+CREATE MAP i18n in_ist (
+    'country' = 'IN'
+    'datepattern' = 'yyyy-MM-dd hh:mm:ss.S'
+    'datesubtypepattern' = 'yyyy-MM-dd'
+    'doubledecimalposition' = '2'
+    'doubledecimalseparator' = ''
+    'doublegroupseparator' = ''
+    'language' = 'en'
+    'timesubtypepattern' = 'hh:mm:ss.S'
+    'timezone' = 'IST'
+);
+
+DROP WRAPPER JDBC IF EXISTS bv_dw_apz_invoices CASCADE;
+
+CREATE WRAPPER JDBC bv_dw_apz_invoices
+    FOLDER = '/base_views/dw_base_views'
+    DATASOURCENAME=datawarehouse
+    CATALOGNAME='warehouse' 
+    SCHEMANAME='adhoc' 
+    RELATIONNAME='apz_invoices' 
+    OUTPUTSCHEMA (
+        cust_code = 'cust_code' :'java.lang.String' (OPT) (sourcetypedecimals='0', sourcetyperadix='10', sourcetypesize='15', sourcetypeid='12', sourcetypename='varchar')  SORTABLE,
+        inv_prefix = 'inv_prefix' :'java.lang.String' (OPT) (sourcetypedecimals='0', sourcetyperadix='10', sourcetypesize='6', sourcetypeid='12', sourcetypename='varchar')  SORTABLE,
+        srno = 'srno' :'java.math.BigDecimal' (OPT) (sourcetypedecimals='0', sourcetyperadix='10', sourcetypesize='20', sourcetypeid='2', sourcetypename='numeric')  SORTABLE,
+        d_inv_date = 'd_inv_date' :'java.time.LocalDateTime' (OPT) (sourcetypedecimals='6', sourcetyperadix='10', sourcetypesize='29', sourcetypeid='93', sourcetypename='timestamp')  SORTABLE,
+        inv_amount = 'inv_amount' :'java.math.BigDecimal' (OPT) (sourcetypedecimals='0', sourcetyperadix='10', sourcetypesize='20', sourcetypeid='2', sourcetypename='numeric')  SORTABLE,
+        inv_bal_amount = 'inv_bal_amount' :'java.math.BigDecimal' (OPT) (sourcetypedecimals='0', sourcetyperadix='10', sourcetypesize='20', sourcetypeid='2', sourcetypename='numeric')  SORTABLE,
+        sync_date = 'sync_date' :'java.time.LocalDateTime' (OPT) (sourcetypedecimals='6', sourcetyperadix='10', sourcetypesize='29', sourcetypeid='93', sourcetypename='timestamp')  SORTABLE,
+        distributor_id = 'distributor_id' :'java.lang.Integer' (OPT) (sourcetypedecimals='0', sourcetyperadix='10', sourcetypesize='5', sourcetypeid='2', sourcetypename='numeric')  SORTABLE,
+        fin_year = 'fin_year' :'java.lang.String' (OPT) (sourcetypedecimals='0', sourcetyperadix='10', sourcetypesize='1000', sourcetypeid='12', sourcetypename='varchar')  SORTABLE,
+        d_due_date = 'd_due_date' :'java.time.LocalDate' (OPT) (sourcetypedecimals='0', sourcetyperadix='10', sourcetypesize='13', sourcetypeid='91', sourcetypename='date')  SORTABLE,
+        n_item_count = 'n_item_count' :'java.lang.Long' (OPT) (sourcetypedecimals='0', sourcetyperadix='10', sourcetypesize='11', sourcetypeid='2', sourcetypename='numeric')  SORTABLE
+    );
+
+DROP VIEW IF EXISTS bv_dw_apz_invoices CASCADE;
+
+CREATE TABLE bv_dw_apz_invoices I18N in_ist (
+        cust_code:text (sourcetypedecimals = '0', sourcetyperadix = '10', sourcetypesize = '15', sourcetypeid = '12'), 
+        inv_prefix:text (sourcetypedecimals = '0', sourcetyperadix = '10', sourcetypesize = '6', sourcetypeid = '12'), 
+        srno:decimal (sourcetypedecimals = '0', sourcetyperadix = '10', sourcetypesize = '20', sourcetypeid = '2'), 
+        d_inv_date:timestamp (sourcetypedecimals = '6', sourcetyperadix = '10', sourcetypesize = '29', sourcetypeid = '93'), 
+        inv_amount:decimal (sourcetypedecimals = '0', sourcetyperadix = '10', sourcetypesize = '20', sourcetypeid = '2'), 
+        inv_bal_amount:decimal (sourcetypedecimals = '0', sourcetyperadix = '10', sourcetypesize = '20', sourcetypeid = '2'), 
+        sync_date:timestamp (sourcetypedecimals = '6', sourcetyperadix = '10', sourcetypesize = '29', sourcetypeid = '93'), 
+        distributor_id:int (sourcetypedecimals = '0', sourcetyperadix = '10', sourcetypesize = '5', sourcetypeid = '4'), 
+        fin_year:text (sourcetypedecimals = '0', sourcetyperadix = '10', sourcetypesize = '1000', sourcetypeid = '12'), 
+        d_due_date:localdate (sourcetypedecimals = '0', sourcetyperadix = '10', sourcetypesize = '13', sourcetypeid = '91'), 
+        n_item_count:long (sourcetypedecimals = '0', sourcetyperadix = '10', sourcetypesize = '11', sourcetypeid = '-5')
+    )
+    FOLDER = '/base_views/dw_base_views'
+    CACHE OFF
+    BATCHSIZEINCACHE DEFAULT
+    TIMETOLIVEINCACHE DEFAULT
+    ADD SEARCHMETHOD bv_dw_apz_invoices(
+        I18N in_ist
+        CONSTRAINTS (
+             ADD cust_code (any) OPT ANY
+             ADD d_due_date (any) OPT ANY
+             ADD distributor_id (any) OPT ANY
+             ADD fin_year (any) OPT ANY
+             ADD inv_amount (any) OPT ANY
+             ADD inv_bal_amount (any) OPT ANY
+             ADD inv_prefix (any) OPT ANY
+             ADD n_item_count (any) OPT ANY
+             ADD srno (any) OPT ANY
+             ADD sync_date (any) OPT ANY
+             ADD d_inv_date (any) OPT ANY
+        )
+        OUTPUTLIST (cust_code, d_due_date, d_inv_date, distributor_id, fin_year, inv_amount, inv_bal_amount, inv_prefix, n_item_count, srno, sync_date
+        )
+        WRAPPER (jdbc bv_dw_apz_invoices)
+    )
+    DELEGATESTATSQUERY = false
+    SMART_THEN_ATSOURCE_THROUGH_VDP;
+
