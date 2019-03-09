@@ -32,9 +32,9 @@
 								DISTINCT n_balance_qty,
 								sch.c_batch_no,
 								c_item_code,
-								case when sch.n_distributor_id=2 then 157 else sch.n_distributor_id end as n_distributor_id
+								sch.n_distributor_id
 							from
-								level1.stock_day_end stock 
+								level1.stock_day_end stock
 							INNER join level1.schemes sch on
 								sch.c_batch_no = stock.c_batch_no
 								and SCH.n_distributor_id = STOCK.n_distributor_id
@@ -53,11 +53,11 @@
 								(
 								-- To get top 10 customers with retailer information
 								select
-									distributor_id as top_dist_id,
+									n_distributor_id as top_dist_id,
 									c_dist_item_code as top_item,
 									c_dist_cust_code as top_cust ,
 									sum( n_total_qty ) as top_qty,
-									ROW_NUMBER() over ( PARTITION by distributor_id,
+									ROW_NUMBER() over ( PARTITION by n_distributor_id,
 									c_dist_item_code
 								order by
 									sum( n_total_qty ) DESC ) as top10
@@ -65,13 +65,13 @@
 									level1.sales s1
 								inner join level1.retailer_sman rsm on
 									s1.c_dist_cust_code = rsm.code
-									AND case when S1.n_distributor_id=2 then 157 else S1.n_distributor_id end = rsm.distributor_id
+									AND S1.n_distributor_id = rsm.distributor_id
 								where
 									rsm.sman_name not like '%DIRECT%'
 									and rsm.sman_name not LIKE '%DIALHEALTH%'
 									and sman_name is not NULL
 									and dt_time>CURRENT_DATE-90
-									and distributor_id in ( 157,
+									and n_distributor_id in ( 2,
 									5,
 									6 )
 									and is_internal = 0
@@ -95,7 +95,7 @@
 							(
 							-- to check whether the customer has taken a scheme or discount in last 90 days
 							Select
-								case when sm.n_distributor_id=2 then 157 else sm.n_distributor_id end as n_distributor_id,
+								sm.n_distributor_id,
 								sm.c_dist_cust_code,
 								sm.c_dist_item_code ,
 								sum( sm.n_qty ) AS n_qty,
