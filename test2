@@ -1,156 +1,133 @@
 
-		select
-			fk_retailer_master_id,
-			dist_id,
-			item_id,
-			ROW_NUMBER() over ( PARTITION by dist_id,
-			fk_retailer_master_id ) as no_of_items 
-		from
-			(
-			select
-				DISTINCT item_id
-				--, top_cust 
-,
-				scheme_batch ,
-				dist_id ,
-				fk_retailer_master_id
-			from
-				(
-				select
-					n_balance_qty,
-					l1.c_item_code as item_id ,
-					l1.n_distributor_id as dist_id,
-					l1.c_batch_no as scheme_batch,
-					top_cust,
-					sman_name,
-					no_of_schemes,
-					fk_retailer_master_id
-					-- /,sch.d_date as scheme_date,sch.qty as scheme_qty,sch.free_qty as scheme_free_qty 
-				from
-					(
-					-- To get schems for items with top 10 customers and no of schemes per item
 					select
 						n_balance_qty,
-						scheme.c_batch_no,
-						c_item_code,
-						scheme.n_distributor_id ,
-						top_item,
+						l1.c_item_code as item_id ,
+						l1.n_distributor_id as dist_id,
+						l1.c_batch_no as scheme_batch,
 						top_cust,
-						top_dist_id ,
-						ROW_NUMBER() over ( PARTITION by scheme.n_distributor_id,
-						scheme.c_item_code,
-						top_cust
-					order by
-						n_balance_qty DESC ) as no_of_schemes
+						sman_name,
+						no_of_schemes,
+						fk_retailer_master_id
+						-- /,sch.d_date as scheme_date,sch.qty as scheme_qty,sch.free_qty as scheme_free_qty 
 					from
 						(
-						-- to get items with schemes with considerable stock
-						SELECT
-							DISTINCT n_balance_qty,
-							sch.c_batch_no,
-							c_item_code,
-							sch.n_distributor_id
-						from
-							level1.stock_day_end stock
-						INNER join level1.schemes sch on
-							sch.c_batch_no = stock.c_batch_no
-							and SCH.n_distributor_id = STOCK.n_distributor_id
-							and stock.c_dist_item_code = sch.c_item_code
-						where
-							STOCK.d_date = CURRENT_DATE-2
-							AND STOCK.n_distributor_id IN ( 2,
-							5,
-							6 )
-							and n_balance_qty>10 * qty
-							and sch.d_date>CURRENT_DATE-11 ) scheme
-					INNER join (
+						-- To get schems for items with top 10 customers and no of schemes per item
 						select
-							*
+							n_balance_qty,
+							scheme.c_batch_no,
+							c_item_code,
+							scheme.n_distributor_id ,
+							top_item,
+							top_cust,
+							top_dist_id ,
+							ROW_NUMBER() over ( PARTITION by scheme.n_distributor_id,
+							scheme.c_item_code,
+							top_cust
+						order by
+							n_balance_qty DESC ) as no_of_schemes
 						from
 							(
-							-- To get top 10 customers with retailer information
-							select
-								n_distributor_id as top_dist_id,
-								c_dist_item_code as top_item,
-								c_dist_cust_code as top_cust ,
-								sum( n_total_qty ) as top_qty,
-								ROW_NUMBER() over ( PARTITION by n_distributor_id,
-								c_dist_item_code
-							order by
-								sum( n_total_qty ) DESC ) as top10
+							-- to get items with schemes with considerable stock
+							SELECT
+								DISTINCT n_balance_qty,
+								sch.c_batch_no,
+								c_item_code,
+								case when sch.n_distributor_id=2 then 157 else sch.n_distributor_id end as n_distributor_id
 							from
-								level1.sales s1
-							inner join level1.retailer_sman rsm on
-								s1.c_dist_cust_code = rsm.code
-								AND S1.n_distributor_id = rsm.distributor_id
+								level1.stock_day_end stock 
+							INNER join level1.schemes sch on
+								sch.c_batch_no = stock.c_batch_no
+								and SCH.n_distributor_id = STOCK.n_distributor_id
+								and stock.c_dist_item_code = sch.c_item_code
 							where
-								rsm.sman_name not like '%DIRECT%'
-								and rsm.sman_name not LIKE '%DIALHEALTH%'
-								and sman_name is not NULL
-								and dt_time>CURRENT_DATE-90
+								STOCK.d_date = CURRENT_DATE-2
+								AND STOCK.n_distributor_id IN ( 2,
+								5,
+								6 )
+								and n_balance_qty>10 * qty
+								and sch.d_date>CURRENT_DATE-11 ) scheme
+						INNER join (
+							select
+								*
+							from
+								(
+								-- To get top 10 customers with retailer information
+								select
+									distributor_id as top_dist_id,
+									c_dist_item_code as top_item,
+									c_dist_cust_code as top_cust ,
+									sum( n_total_qty ) as top_qty,
+									ROW_NUMBER() over ( PARTITION by distributor_id,
+									c_dist_item_code
+								order by
+									sum( n_total_qty ) DESC ) as top10
+								from
+									level1.sales s1
+								inner join level1.retailer_sman rsm on
+									s1.c_dist_cust_code = rsm.code
+									AND case when S1.n_distributor_id=2 then 157 else S1.n_distributor_id end = rsm.distributor_id
+								where
+									rsm.sman_name not like '%DIRECT%'
+									and rsm.sman_name not LIKE '%DIALHEALTH%'
+									and sman_name is not NULL
+									and dt_time>CURRENT_DATE-90
+									and distributor_id in ( 157,
+									5,
+									6 )
+									and is_internal = 0
+									and is_claimable = 0
+								GROUP by
+									1,
+									2,
+									3
+								having
+									sum( n_total_qty )>10 ) sales
+							Where
+								top10<11 ) sales ON
+							scheme.n_distributor_id = sales.top_dist_id
+							AND scheme.c_item_code = sales.top_item ) l1
+					left join (
+						select
+							s3.*,
+							sman_name
+							-- ,sm1.c_batch_no,o1.dt_ord_time
+						from
+							(
+							-- to check whether the customer has taken a scheme or discount in last 90 days
+							Select
+								case when sm.n_distributor_id=2 then 157 else sm.n_distributor_id end as n_distributor_id,
+								sm.c_dist_cust_code,
+								sm.c_dist_item_code ,
+								sum( sm.n_qty ) AS n_qty,
+								sum( sm.n_sch_qty ) as n_sch_qty,
+								sum( sm.n_sch_disc_per ) as n_sch_disc_per
+							from
+								level1.sales sm
+							where
+								dt_time::date >= CURRENT_DATE-90
 								and n_distributor_id in ( 2,
 								5,
 								6 )
 								and is_internal = 0
 								and is_claimable = 0
-							GROUP by
+							group by
 								1,
 								2,
 								3
 							having
-								sum( n_total_qty )>10 ) sales
-						Where
-							top10<11 ) sales ON
-						scheme.n_distributor_id = sales.top_dist_id
-						AND scheme.c_item_code = sales.top_item ) l1
-				left join (
-					select
-						s3.*,
-						sman_name
-						-- ,sm1.c_batch_no,o1.dt_ord_time
-					from
-						(
-						-- to check whether the customer has taken a scheme or discount in last 90 days
-						Select
-							sm.n_distributor_id,
-							sm.c_dist_cust_code,
-							sm.c_dist_item_code ,
-							sum( sm.n_qty ) AS n_qty,
-							sum( sm.n_sch_qty ) as n_sch_qty,
-							sum( sm.n_sch_disc_per ) as n_sch_disc_per
-						from
-							level1.sales sm
+								( sum( n_sch_qty )+ sum( n_sch_disc_per ))>0 ) s3
+						left join level1.retailer_sman rsm on
+							s3.n_distributor_id = rsm.distributor_id
+							and s3.c_dist_cust_code = rsm.code
 						where
-							dt_time::date >= CURRENT_DATE-90
-							and n_distributor_id in ( 2,
-							5,
-							6 )
-							and is_internal = 0
-							and is_claimable = 0
-						group by
-							1,
-							2,
-							3
-						having
-							( sum( n_sch_qty )+ sum( n_sch_disc_per ))>0 ) s3
-					left join level1.retailer_sman rsm on
-						s3.n_distributor_id = rsm.distributor_id
-						and s3.c_dist_cust_code = rsm.code
-					where
-						rsm.sman_name not like '%DIRECT%'
-						and rsm.sman_name not LIKE '%DIALHEALTH%'
-						and sman_name is not NULL ) s4 on
-					l1.c_item_code = s4.c_dist_item_code
-					and top_cust = s4.c_dist_cust_code
-					and top_dist_id = s4.n_distributor_id
-				left join mdm_master.retailer_distributor_mapping rdm on
-					rdm.distributors_retailer_code = top_cust
-					and rdm.fk_distributor_master_id = top_dist_id
-					AND rdm.is_active = 'Y' 
-					)
-			where
-				sman_name is NULL
-				and no_of_schemes = 1
-				and fk_retailer_master_id is not NULL
-				)
-				
+							rsm.sman_name not like '%DIRECT%'
+							and rsm.sman_name not LIKE '%DIALHEALTH%'
+							and sman_name is not NULL ) s4 on
+						l1.c_item_code = s4.c_dist_item_code
+						and top_cust = s4.c_dist_cust_code
+						and top_dist_id = s4.n_distributor_id
+					left join mdm_master.retailer_distributor_mapping rdm on
+						rdm.distributors_retailer_code = top_cust
+						and rdm.fk_distributor_master_id = top_dist_id
+						AND rdm.is_active = 'Y' 
+						
